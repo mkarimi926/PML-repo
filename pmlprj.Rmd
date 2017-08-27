@@ -44,7 +44,7 @@ pmltr <- read.csv("outputDirectory/training.csv", stringsAsFactors = FALSE)
 pmlts <- read.csv("outputDirectory/test.csv", stringsAsFactors = FALSE)
 
 # remove index variable which does not affect on prediction
-pmltr <- pmltr[, -c(1)]
+pmltr <- pmltr[, -c(1, 3:7)]
 pmltr$user_name <- as.factor(pmltr$user_name)
 pmltr$classe <- as.factor(pmltr$classe)
 
@@ -72,7 +72,7 @@ qplot(user_name, roll_belt, colour=classe, data=pmltr_new, main = "Activity leve
 
 ## Partition training data
 ```{r part}
-inTrain <- createDataPartition(y = pmltr_new$classe, p = 0.90, list = FALSE)
+inTrain <- createDataPartition(y = pmltr_new$classe, p = 0.75, list = FALSE)
 tempTrain <- pmltr_new[inTrain,]
 tempTest <- pmltr_new[-inTrain,]
 table(tempTrain$classe)
@@ -80,20 +80,21 @@ table(tempTrain$classe)
 
 ## Create Models: Classification Trees, Random Forest, Gradient Boosting Model
 ```{r models}
-model1 <- train(classe ~., data = tempTrain, method = "rpart")
-#model2 <- train(classe ~., data = tempTrain, method = "rf")
-#model3 <- train(classe ~., data = tempTrain, method = "gbm", verbose = FALSE)
+ct_model <- train(classe ~., data = tempTrain, method = "rpart", trControl=trainControl(method="cv",number=5))
+#rf_model <- train(classe ~., data = tempTrain, method = "rf")
+#gbm_model <- train(classe ~., data = tempTrain, method = "gbm", verbose = FALSE)
 ```
 
 ## Display outputs
 ```{r output}
-confusionMatrix(predict(model1, newdata = tempTest), tempTest$classe)
-#confusionMatrix(predict(model2, newdata = tempTest), tempTest$classe)
-#confusionMatrix(predict(model3, newdata = tempTest), tempTest$classe)
+confusionMatrix(predict(ct_model, newdata = tempTest), tempTest$classe)
+print(plot(varImp(ct_model, scale = FALSE)))
+#confusionMatrix(predict(rf_model, newdata = tempTest), tempTest$classe)
+#confusionMatrix(predict(gbm_model, newdata = tempTest), tempTest$classe)
 
-predict(model1, newdata = pmlts)
-#predict(model2, newdata = pmlts)
-#predict(model3, newdata = pmlts)
+predict(ct_model, newdata = pmlts)
+#predict(rf_model, newdata = pmlts)
+#predict(gbm_model, newdata = pmlts)
 ```
 
 
