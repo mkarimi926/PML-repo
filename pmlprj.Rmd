@@ -13,91 +13,87 @@ knitr::opts_chunk$set(echo = TRUE)
 Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
 Based on these data we are going to build a prediction model, which predicts the manner in which the excersize is done according to quantified variables.
 
-## Data Preparation and environment
-```{r data_preparation}
+## Data and environment preparation
+```{r warning=FALSE, message=FALSE}
 library(caret)
 library(ggplot2)
-setwd("c:/work/DS/jhu/8-Practical-Machine-Learning/prj/")
-pmltr <- read.csv("pml-training.csv")
-pmlts <- read.csv("pml-testing.csv")
-# remove X variable, which is just a sample number
-pmltr <- pmltr[,-1]
+library(randomForest)
+library(corrplot)
+library(rpart)
+set.seed(1000)
+
+mainDir <- getwd()
+subDir <- "outputDirectory"
+if (!file.exists(subDir)){
+        dir.create(file.path(mainDir, subDir))
+}
+
+if(!file.exists("outputDirectory/training.csv")){
+        fileURL_train <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+        download.file(fileURL_train, destfile = "outputDirectory/training.csv")
+        
+}
+
+if(!file.exists("outputDirectory/test.csv")){
+        fileURL_test <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+        download.file(fileURL_test, destfile = "outputDirectory/test.csv")
+        
+}
+
+pmltr <- read.csv("outputDirectory/training.csv", stringsAsFactors = FALSE)
+pmlts <- read.csv("outputDirectory/test.csv", stringsAsFactors = FALSE)
+
+# remove index variable which does not affect on prediction
+pmltr <- pmltr[, -c(1)]
+pmltr$user_name <- as.factor(pmltr$user_name)
+pmltr$classe <- as.factor(pmltr$classe)
+
+# convert variables to number
+for(i in 1:ncol(pmltr)){
+        
+        if(class(pmltr[,i]) == "character"){
+                
+                pmltr[,i] <- as.numeric(pmltr[,i])
+        }
+}
+# remove variables which contraint NA
+num_na <- sapply(1:ncol(pmltr), function(x) sum(is.na(pmltr[,x])))
+pmltr_new <- pmltr[, num_na == 0]
+
 ```
 
 ## Explorarory analysis
 ```{r eda}
-table(pmltr$classe)
-table(pmltr$user_name)
-table(pmlts$user_name)
-#find factor variables
-names(Filter(is.factor, pmltr))
-qplot(pmltr$user_name, pmltr$kurtosis_roll_arm, colour=pmltr$classe, data=pmltr, main = "Activity level of each user", xlab = "user name", ylab = "activity level")
+table(pmltr_new$classe)
+table(pmltr_new$user_name)
+# draw some plot of data
+qplot(user_name, roll_belt, colour=classe, data=pmltr_new, main = "Activity level of each user on belt", xlab = "user name", ylab = "activity level on belt")
 ```
 
-## Approach1: predicting with trees
-```{r pwt}
-#partition data
-inTrain <- createDataPartition(y=pmltr$classe, p=0.7, list=FALSE)
-training <- pmltr[inTrain,]
-testing <- pmltr[-inTrain,]
-nrow(training)
-nrow(testing)
-# records with NA values should be removed
-# row.has.na <- apply(training, 1, function(x){any(is.na(x))})
-# predictors_no_NA <- training[!row.has.na,]
-#buid the classification model
-modFit <- train(classe ~ ., method="rpart", data = training, na.action=na.omit)
-print(modFit$finalModel)
-plot(modFit$finalModel, uniform = TRUE, main="Classification Tree")
-text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
-# remove NA values from test data
-row.has.na.t <- apply(testing, 1, function(x){any(is.na(x))})
-predictors_no_NA.t <- testing[!row.has.na.t,]
-prd <- predict(modFit, newdata = testing, na.action = na.omit)
-tb <- table(predictors_no_NA.t$classe==prd)
-print(paste("Prediction Accuracy: ",tb[2]/(tb[1]+tb[2])*100))
-# not possible to predict pmlts, becuase this model only predicts samples with not NA values
+## Partition training data
+```{r part}
+inTrain <- createDataPartition(y = pmltr_new$classe, p = 0.90, list = FALSE)
+tempTrain <- pmltr_new[inTrain,]
+tempTest <- pmltr_new[-inTrain,]
+table(tempTrain$classe)
 ```
 
-## Approach2: predicting with Random Forests
-```{r pwrf}
-inTrain <- createDataPartition(y=pmltr$classe, p=0.7, list=FALSE)
-training <- pmltr[inTrain,]
-testing <- pmltr[-inTrain,]
-nrow(training)
-nrow(testing)
-# modrf <- train(classe ~ ., data = training, method = "rf", prox=TRUE, na.action=na.omit)
-# cannot run model completely
-# print(modrf$finalModel)
-# pred <- predict(modrf, testing)
-# testing$predRight <- pred == testing$classe
-# tb <- table(pred, testing$classe)
-# print(paste("Prediction Accuracy: ",tb[2]/(tb[1]+tb[2])*100))
+## Create Models: Classification Trees, Random Forest, Gradient Boosting Model
+```{r models}
+model1 <- train(classe ~., data = tempTrain, method = "rpart")
+#model2 <- train(classe ~., data = tempTrain, method = "rf")
+#model3 <- train(classe ~., data = tempTrain, method = "gbm", verbose = FALSE)
 ```
 
-## Approach3: predicting with lda and nb methods
-```{r pwlnm}
-inTrain <- createDataPartition(y=pmltr$classe, p=0.7, list=FALSE)
-training <- pmltr[inTrain,]
-testing <- pmltr[-inTrain,]
-# modlda <- train(classe ~ ., data=training, method="lda", na.action=na.omit)
-# modnb <- train(classe ~ ., data = training, method = "nb", na.action=na.omit)
-# plda <- predict(modlda, tesing)
-# pnb <- predict(modnb, testing)
-# tb <- table(plda, pnb)
-# print(paste("Prediction Accuracy: ",tb[2]/(tb[1]+tb[2])*100))
-# train commands didn't run
-```
+## Display outputs
+```{r output}
+confusionMatrix(predict(model1, newdata = tempTest), tempTest$classe)
+#confusionMatrix(predict(model2, newdata = tempTest), tempTest$classe)
+#confusionMatrix(predict(model3, newdata = tempTest), tempTest$classe)
 
-## Approach4: predicting with glm method
-```{r pwglm}
-inTrain <- createDataPartition(y=pmltr$classe, p=0.7, list=FALSE)
-training <- pmltr[inTrain,]
-testing <- pmltr[-inTrain,]
-# modglm <- train(classe ~ ., data=training, method="glm", na.action=na.omit)
-# pglm <- predict(modglm, testing)
-# tb <- table(testing$classe==pglm)
-# print(paste("Prediction Accuracy by glm: ",tb[2]/(tb[1]+tb[2])*100))
+predict(model1, newdata = pmlts)
+#predict(model2, newdata = pmlts)
+#predict(model3, newdata = pmlts)
 ```
 
 
