@@ -1,0 +1,105 @@
+---
+title: "PML-Project: Classification based on a set of variables to predict the manner in which the excersie is done"
+author: "Mahmood Karimi"
+date: "27 Aug 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Executive summary
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+Based on these data we are going to build a prediction model, which predicts the manner in which the excersize is done according to quantified variables.
+
+## Data Preparation and environment
+```{r data_preparation}
+library(caret)
+library(ggplot2)
+setwd("c:/work/DS/jhu/8-Practical-Machine-Learning/prj/")
+pmltr <- read.csv("pml-training.csv")
+pmlts <- read.csv("pml-testing.csv")
+# remove X variable, which is just a sample number
+pmltr <- pmltr[,-1]
+```
+
+## Explorarory analysis
+```{r eda}
+table(pmltr$classe)
+table(pmltr$user_name)
+table(pmlts$user_name)
+#find factor variables
+names(Filter(is.factor, pmltr))
+qplot(pmltr$user_name, pmltr$kurtosis_roll_arm, colour=pmltr$classe, data=pmltr, main = "Activity level of each user", xlab = "user name", ylab = "activity level")
+```
+
+## Approach1: predicting with trees
+```{r pwt}
+#partition data
+inTrain <- createDataPartition(y=pmltr$classe, p=0.7, list=FALSE)
+training <- pmltr[inTrain,]
+testing <- pmltr[-inTrain,]
+nrow(training)
+nrow(testing)
+# records with NA values should be removed
+# row.has.na <- apply(training, 1, function(x){any(is.na(x))})
+# predictors_no_NA <- training[!row.has.na,]
+#buid the classification model
+modFit <- train(classe ~ ., method="rpart", data = training, na.action=na.omit)
+print(modFit$finalModel)
+plot(modFit$finalModel, uniform = TRUE, main="Classification Tree")
+text(modFit$finalModel, use.n=TRUE, all=TRUE, cex=.8)
+# remove NA values from test data
+row.has.na.t <- apply(testing, 1, function(x){any(is.na(x))})
+predictors_no_NA.t <- testing[!row.has.na.t,]
+prd <- predict(modFit, newdata = testing, na.action = na.omit)
+tb <- table(predictors_no_NA.t$classe==prd)
+print(paste("Prediction Accuracy: ",tb[2]/(tb[1]+tb[2])*100))
+# not possible to predict pmlts, becuase this model only predicts samples with not NA values
+```
+
+## Approach2: predicting with Random Forests
+```{r pwrf}
+inTrain <- createDataPartition(y=pmltr$classe, p=0.7, list=FALSE)
+training <- pmltr[inTrain,]
+testing <- pmltr[-inTrain,]
+nrow(training)
+nrow(testing)
+# modrf <- train(classe ~ ., data = training, method = "rf", prox=TRUE, na.action=na.omit)
+# cannot run model completely
+# print(modrf$finalModel)
+# pred <- predict(modrf, testing)
+# testing$predRight <- pred == testing$classe
+# tb <- table(pred, testing$classe)
+# print(paste("Prediction Accuracy: ",tb[2]/(tb[1]+tb[2])*100))
+```
+
+## Approach3: predicting with lda and nb methods
+```{r pwlnm}
+inTrain <- createDataPartition(y=pmltr$classe, p=0.7, list=FALSE)
+training <- pmltr[inTrain,]
+testing <- pmltr[-inTrain,]
+# modlda <- train(classe ~ ., data=training, method="lda", na.action=na.omit)
+# modnb <- train(classe ~ ., data = training, method = "nb", na.action=na.omit)
+# plda <- predict(modlda, tesing)
+# pnb <- predict(modnb, testing)
+# tb <- table(plda, pnb)
+# print(paste("Prediction Accuracy: ",tb[2]/(tb[1]+tb[2])*100))
+# train commands didn't run
+```
+
+## Approach4: predicting with glm method
+```{r pwglm}
+inTrain <- createDataPartition(y=pmltr$classe, p=0.7, list=FALSE)
+training <- pmltr[inTrain,]
+testing <- pmltr[-inTrain,]
+# modglm <- train(classe ~ ., data=training, method="glm", na.action=na.omit)
+# pglm <- predict(modglm, testing)
+# tb <- table(testing$classe==pglm)
+# print(paste("Prediction Accuracy by glm: ",tb[2]/(tb[1]+tb[2])*100))
+```
+
+
+# End of Report
+
