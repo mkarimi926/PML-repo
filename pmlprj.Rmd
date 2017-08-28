@@ -80,9 +80,9 @@ table(tempTrain$classe)
 
 ## Create Models: Classification Trees, Random Forest, Gradient Boosting Model
 ```{r models}
-ct_model <- train(classe ~., data = tempTrain, method = "rpart", trControl=trainControl(method="cv",number=5))
-#rf_model <- train(classe ~., data = tempTrain, method = "rf")
-#gbm_model <- train(classe ~., data = tempTrain, method = "gbm", verbose = FALSE)
+ct_model <- train(classe ~., data = tempTrain, method = "rpart", trControl=trainControl(method="cv",number=2))
+#rf_model <- train(classe ~., data = tempTrain, method = "rf", trControl=trainControl(method="cv",number=5))
+gbm_model <- train(classe ~., data = tempTrain, method = "gbm", verbose = FALSE, trControl=trainControl(method="cv",number=2))
 ```
 
 ## Display outputs
@@ -90,11 +90,14 @@ ct_model <- train(classe ~., data = tempTrain, method = "rpart", trControl=train
 confusionMatrix(predict(ct_model, newdata = tempTest), tempTest$classe)
 print(plot(varImp(ct_model, scale = FALSE)))
 #confusionMatrix(predict(rf_model, newdata = tempTest), tempTest$classe)
-#confusionMatrix(predict(gbm_model, newdata = tempTest), tempTest$classe)
+#print(plot(varImp(rf_model, scale = FALSE)))
+confusionMatrix(predict(gbm_model, newdata = tempTest), tempTest$classe)
+print(plot(varImp(gbm_model, scale = FALSE)))
+
 
 predict(ct_model, newdata = pmlts)
 #predict(rf_model, newdata = pmlts)
-#predict(gbm_model, newdata = pmlts)
+predict(gbm_model, newdata = pmlts)
 ```
 
 
