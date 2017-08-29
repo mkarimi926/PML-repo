@@ -14,6 +14,12 @@ Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible t
 Based on these data we are going to build a prediction model, which predicts the manner in which the excersize is done according to quantified variables.
 
 ## Data and environment preparation
+In this section we are going to do the following tasks:
+
+* load needed libraries
+* load the training and test data sets
+* Remove unneeded variables which does not have correct effect of prediction such as timestamp,...
+* Remove variables which contrain NA values
 ```{r warning=FALSE, message=FALSE}
 library(caret)
 library(ggplot2)
@@ -56,13 +62,13 @@ for(i in 1:ncol(pmltr)){
                 pmltr[,i] <- as.numeric(pmltr[,i])
         }
 }
-# remove variables which contraint NA
+# remove variables which contain NA
 num_na <- sapply(1:ncol(pmltr), function(x) sum(is.na(pmltr[,x])))
 pmltr_new <- pmltr[, num_na == 0]
-
 ```
 
 ## Explorarory analysis
+In this section we are going to do some exploratory ananlysis on training data such as: grouping data by classe and user_name variables and also draw a plot based on two variables
 ```{r eda}
 table(pmltr_new$classe)
 table(pmltr_new$user_name)
@@ -71,6 +77,7 @@ qplot(user_name, roll_belt, colour=classe, data=pmltr_new, main = "Activity leve
 ```
 
 ## Partition training data
+In this section we are going to partition training data set, to two separate chunks. The big one is dedicated for training and small one is dedicated for testing
 ```{r part}
 inTrain <- createDataPartition(y = pmltr_new$classe, p = 0.75, list = FALSE)
 tempTrain <- pmltr_new[inTrain,]
@@ -78,28 +85,36 @@ tempTest <- pmltr_new[-inTrain,]
 table(tempTrain$classe)
 ```
 
-## Create Models: Classification Trees, Random Forest, Gradient Boosting Model
-```{r models}
+## Method1: Classification Trees
+In this section we build the classification Trees model based on trainings data with two fold cross validation. The result is displayed in confuction matrix and a diagram displays the importance of variables used in prediction.
+```{r ct_model}
 ct_model <- train(classe ~., data = tempTrain, method = "rpart", trControl=trainControl(method="cv",number=2))
-#rf_model <- train(classe ~., data = tempTrain, method = "rf", trControl=trainControl(method="cv",number=5))
-gbm_model <- train(classe ~., data = tempTrain, method = "gbm", verbose = FALSE, trControl=trainControl(method="cv",number=2))
-```
-
-## Display outputs
-```{r output}
 confusionMatrix(predict(ct_model, newdata = tempTest), tempTest$classe)
 print(plot(varImp(ct_model, scale = FALSE)))
-#confusionMatrix(predict(rf_model, newdata = tempTest), tempTest$classe)
-#print(plot(varImp(rf_model, scale = FALSE)))
+predict(ct_model, newdata = pmlts)
+```
+This model has the lowest accuracy amoung the selected models and it is about 51% with confidence interval 95%.
+
+## Method2: Gradiant Boosting Model
+In this section we build the Gradiant Boosting model based on trainings data with two fold cross validation. The result is displayed in confuction matrix and a diagram displays the importance of variables used in prediction.
+```{r gbm_model}
+gbm_model <- train(classe ~., data = tempTrain, method = "gbm", verbose = FALSE, trControl=trainControl(method="cv",number=2))
 confusionMatrix(predict(gbm_model, newdata = tempTest), tempTest$classe)
 print(plot(varImp(gbm_model, scale = FALSE)))
-
-
-predict(ct_model, newdata = pmlts)
-#predict(rf_model, newdata = pmlts)
 predict(gbm_model, newdata = pmlts)
 ```
+This model has a good accuracy and it is 96% with confidence interval 95%
 
+
+## Method3: Random Forest Model
+In this section we build the Random Forest model based on trainings data with two fold cross validation. The result is displayed in confuction matrix and a diagram displays the importance of variables used in prediction.
+```{r rf_model}
+rf_model <- train(classe ~., data = tempTrain, method = "rf", trControl=trainControl(method="cv",number=2))
+confusionMatrix(predict(rf_model, newdata = tempTest), tempTest$classe)
+print(plot(varImp(rf_model, scale = FALSE)))
+predict(rf_model, newdata = pmlts)
+```
+This model has the best accuracy and it is 99% with confidence interval 95%
 
 # End of Report
 
